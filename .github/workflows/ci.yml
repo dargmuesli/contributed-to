@@ -1,0 +1,75 @@
+name: CI
+
+permissions: {}
+
+on:
+  pull_request:
+  push:
+    branches:
+      - alpha
+      - beta
+      - main
+      - renovate/**
+
+jobs:
+  ci-optimization:
+    name: CI optimization
+    uses: dargmuesli/github-actions/.github/workflows/ci-optimization.yml@d706bfb7bffcbeb7a3828298f5b0d0a0c2da5185 # 4.0.4
+    permissions:
+      pull-requests: read
+    secrets:
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+  release_semantic_dry:
+    needs: ci-optimization
+    if: needs.ci-optimization.outputs.continue == 'true'
+    name: Release (semantic, dry)
+    uses: dargmuesli/github-actions/.github/workflows/release-semantic.yml@d706bfb7bffcbeb7a3828298f5b0d0a0c2da5185 # 4.0.4
+    permissions:
+      contents: write
+      id-token: write
+    secrets:
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+    with:
+      DRY_RUN: true
+      EXTRA_PLUGINS: |
+        semantic-release-replace-plugin
+  build:
+    name: Build
+    uses: dargmuesli/github-actions/.github/workflows/docker.yml@d706bfb7bffcbeb7a3828298f5b0d0a0c2da5185 # 4.0.4
+    needs: release_semantic_dry
+    permissions:
+      packages: write
+    with:
+      ARTIFACT_PATH: .
+      BUILD_TARGET_RELEASE: test
+      TAG: ${{ needs.release_semantic_dry.outputs.new_release_version }}
+    secrets:
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+  coverage:
+    name: Upload Coverage
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download coverage artifact
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: build-artifact
+      - name: Extract coverage artifact
+        run: |
+          tar -xzf build-artifact.tar
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+  release_semantic:
+    needs: build
+    name: Release (semantic)
+    uses: dargmuesli/github-actions/.github/workflows/release-semantic.yml@d706bfb7bffcbeb7a3828298f5b0d0a0c2da5185 # 4.0.4
+    permissions:
+      contents: write
+      id-token: write
+    with:
+      EXTRA_PLUGINS: |
+        semantic-release-replace-plugin
+    secrets:
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}

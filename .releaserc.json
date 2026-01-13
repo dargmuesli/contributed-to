@@ -1,0 +1,62 @@
+{
+    "plugins": [
+        [
+            "@semantic-release/commit-analyzer",
+            {
+                "preset": "conventionalcommits",
+                "presetConfig": {}
+            }
+        ],
+        [
+            "@semantic-release/release-notes-generator",
+            {
+                "preset": "conventionalcommits",
+                "presetConfig": {}
+            }
+        ],
+        "@semantic-release/changelog",
+        [
+            "semantic-release-replace-plugin",
+            {
+                "replacements": [
+                    {
+                        "countMatches": true,
+                        "files": ["pyproject.toml"],
+                        "from": "version = \".*\"",
+                        "results": [
+                            {
+                                "file": "pyproject.toml",
+                                "hasChanged": true,
+                                "numMatches": 1,
+                                "numReplacements": 1
+                            }
+                        ],
+                        "to": "version = \"${nextRelease.version}\""
+                    },
+                    {
+                        "countMatches": true,
+                        "files": ["uv.lock"],
+                        "from": "\\[\\[package\\]\\]\nname = \"contributed-to\"\nversion = \".*\"",
+                        "results": [
+                            {
+                                "file": "uv.lock",
+                                "hasChanged": true,
+                                "numMatches": 1,
+                                "numReplacements": 1
+                            }
+                        ],
+                        "to": "[[package]]\nname = \"contributed-to\"\nversion = \"${nextRelease.version}\""
+                    }
+                ]
+            }
+        ],
+        [
+            "@semantic-release/git",
+            {
+                "assets": ["CHANGELOG.md", "pyproject.toml", "uv.lock"]
+            }
+        ],
+        "@semantic-release/github"
+    ],
+    "tagFormat": "${version}"
+}

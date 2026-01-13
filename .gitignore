@@ -1,0 +1,28 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Type checking
+.mypy_cache
+
+# Testing and coverage
+.pytest_cache
+.coverage
+coverage.xml
+htmlcov/
+
+# Ruff
+.ruff_cache/
+
+# Project specific
+github_cache
+output
+input/*
+!input/.gitkeep
