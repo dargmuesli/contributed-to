@@ -11,6 +11,8 @@ Extract and enrich GitHub pinned repository data from profile HTML.
 
 GitHub doesn't provide an API to fetch pinned repositories ([#39589](https://github.com/orgs/community/discussions/39589)). This tool extracts them from profile HTML and enriches with API metadata.
 
+This allows to [show a full list of projects contributed to](https://jonas-thelemann.de/projects/contributions).
+
 ## Installation
 
 ```bash
