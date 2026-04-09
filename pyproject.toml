@@ -9,7 +9,7 @@ dev = [
     "pytest-cov==7.1.0",
     "pytest-mock==3.15.1",
     "responses==0.26.0",
-    "ruff==0.15.9",
+    "ruff==0.15.10",
     "types-requests==2.33.0.20260408",
 ]
 
@@ -25,7 +25,7 @@ classifiers = [
 ]
 dependencies = [
     "beautifulsoup4==4.14.3",
-    "lxml==6.0.2",
+    "lxml==6.0.3",
     "requests==2.33.1",
 ]
 description = "Extract and enrich GitHub pinned repository data from profile pins HTML"
