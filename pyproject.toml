@@ -25,7 +25,7 @@ classifiers = [
 ]
 dependencies = [
     "beautifulsoup4==4.14.3",
-    "lxml==6.1.0",
+    "lxml==6.1.1",
     "requests==2.34.2",
 ]
 description = "Extract and enrich GitHub pinned repository data from profile pins HTML"
