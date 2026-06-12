@@ -7,7 +7,7 @@ ENV UV_PYTHON_DOWNLOADS=0
 
 WORKDIR /srv/app/
 
-COPY --from=ghcr.io/astral-sh/uv:0.11.20 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.11.21 /uv /uvx /bin/
 COPY ./docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 
