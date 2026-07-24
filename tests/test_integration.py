@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Jonas Thelemann
 """Integration tests for the complete workflow."""
 
 from __future__ import annotations
