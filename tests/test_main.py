@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Jonas Thelemann
 """Unit tests for main module."""
 
 from __future__ import annotations

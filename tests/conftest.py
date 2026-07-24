@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Jonas Thelemann
 """Test configuration and fixtures."""
 
 from __future__ import annotations

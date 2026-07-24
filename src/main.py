@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Jonas Thelemann
 """Extract and enrich GitHub pinned repository data from profile pins HTML."""
 
 from __future__ import annotations
