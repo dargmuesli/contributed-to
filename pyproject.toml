@@ -34,7 +34,7 @@ license = {text = "MIT"}
 name = "contributed-to"
 readme = "README.md"
 requires-python = ">=3.11"
-version = "0.0.1"
+version = "0.1.0"
 
 [project.scripts]
 contributed-to = "src.main:main"
