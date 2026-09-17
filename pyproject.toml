@@ -28,8 +28,8 @@ dependencies = [
     "lxml==6.1.3",
     "requests==2.34.2",
 ]
-description = "Extract and enrich GitHub pinned repository data from profile pins HTML"
-keywords = ["github", "profile", "pins", "repositories", "api", "stats"]
+description = "Collect the GitHub projects a user contributed to, with what they did in each"
+keywords = ["github", "contributions", "repositories", "api", "stats"]
 license = {text = "MIT"}
 name = "contributed-to"
 readme = "README.md"

@@ -4,13 +4,15 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from collections.abc import Callable, Generator
+    from pathlib import Path
+
+GRAPHQL_URL = "https://api.github.com/graphql"
 
 
 @pytest.fixture(autouse=True)
@@ -26,15 +28,14 @@ def _set_test_env() -> Generator[None, None, None]:
 
 
 @pytest.fixture(autouse=True)
-def reset_rate_limit_state() -> Generator[None, None, None]:
-    """Reset rate limit state before each test."""
-    from src.main import _rate_limit_state
+def _github_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Give the module a token and a cache directory of its own.
 
-    # Reset before test
-    _rate_limit_state.skip_until = 0.0
-    yield
-    # Reset after test
-    _rate_limit_state.skip_until = 0.0
+    Both are module constants read at import time.
+    So they have to be patched on the module rather than in the environment.
+    """
+    monkeypatch.setattr("src.main.GITHUB_TOKEN", "test_token_12345")
+    monkeypatch.setattr("src.main.CACHE_DIR", str(tmp_path / "github_cache"))
 
 
 @pytest.fixture
@@ -45,23 +46,18 @@ def sample_html() -> str:
         <li class="source" data-pinnable-type="repository">
             <input type="checkbox" checked>
             <label class="pinned-item-name">
-                <svg></svg>
                 <strong data-filter-item-text>nuxt/nuxt</strong>
-                <span class="stars">59.3k<svg></svg></span>
             </label>
         </li>
         <li class="source" data-pinnable-type="repository">
             <input type="checkbox" checked>
             <label class="pinned-item-name">
-                <svg></svg>
-                <strong data-filter-item-text>testuser/test-repo</strong>
-                <span class="stars">123<svg></svg></span>
+                <strong data-filter-item-text>test-repo</strong>
             </label>
         </li>
         <li class="source" data-pinnable-type="gist">
             <input type="checkbox">
             <label class="pinned-item-name">
-                <svg></svg>
                 <strong data-filter-item-text>Some Gist</strong>
             </label>
         </li>
@@ -70,72 +66,57 @@ def sample_html() -> str:
 
 
 @pytest.fixture
-def sample_repo_response() -> dict[str, object]:
-    """Sample GitHub API repository response."""
-    return {
-        "name": "test-repo",
-        "full_name": "testuser/test-repo",
-        "description": "A test repository",
-        "fork": False,
-        "stargazers_count": 123,
-        "html_url": "https://github.com/testuser/test-repo",
-        "owner": {
-            "login": "testuser",
-            "avatar_url": "https://avatars.githubusercontent.com/u/12345",
-            "type": "User",
-            "html_url": "https://github.com/testuser",
-        },
-    }
+def repo_node() -> Callable[..., dict[str, object]]:
+    """Return a factory for one repository as the GraphQL API reports it."""
+
+    def build(slug: str = "nuxt/nuxt", **overrides: object) -> dict[str, object]:
+        owner, name = slug.split("/", 1)
+        node: dict[str, object] = {
+            "defaultBranchRef": {
+                "target": {
+                    "history": {"totalCount": 6},
+                    "latest": {"nodes": [{"committedDate": "2026-01-29T09:39:30Z"}]},
+                },
+            },
+            "description": "The full-stack Vue framework.",
+            "isFork": False,
+            "name": name,
+            "nameWithOwner": slug,
+            "owner": {
+                "__typename": "Organization",
+                "avatarUrl": f"https://avatars.githubusercontent.com/{owner}",
+                "login": owner,
+                "url": f"https://github.com/{owner}",
+            },
+            "stargazerCount": 60872,
+            "url": f"https://github.com/{slug}",
+            "viewerPermission": "TRIAGE",
+        }
+        node.update(overrides)
+        return node
+
+    return build
 
 
 @pytest.fixture
-def nuxt_repo_response() -> dict[str, object]:
-    """Sample GitHub API repository response for nuxt/nuxt."""
-    return {
-        "name": "nuxt",
-        "full_name": "nuxt/nuxt",
-        "description": "The Intuitive Vue Framework.",
-        "fork": False,
-        "stargazers_count": 59300,
-        "html_url": "https://github.com/nuxt/nuxt",
-        "owner": {
-            "login": "nuxt",
-            "avatar_url": "https://avatars.githubusercontent.com/u/23360933",
-            "type": "Organization",
-            "html_url": "https://github.com/nuxt",
-        },
-    }
+def batch_response(
+    repo_node: Callable[..., dict[str, object]],
+) -> Callable[..., dict[str, object]]:
+    """Return a factory for a complete batch response covering one repository."""
 
+    def build(
+        index: int = 0,
+        slug: str = "nuxt/nuxt",
+        **overrides: object,
+    ) -> dict[str, object]:
+        return {
+            f"issues{index}": {"issueCount": 15},
+            f"merged{index}": {
+                "issueCount": 6,
+                "nodes": [{"mergedAt": "2026-01-29T09:39:31Z"}],
+            },
+            f"repo{index}": repo_node(slug, **overrides),
+            f"reviews{index}": {"issueCount": 5},
+        }
 
-@pytest.fixture
-def temp_cache_dir(tmp_path: Path) -> Generator[Path, None, None]:
-    """Create a temporary cache directory."""
-    cache_dir = tmp_path / "test_cache"
-    cache_dir.mkdir()
-    yield cache_dir
-
-
-@pytest.fixture
-def temp_input_dir(tmp_path: Path) -> Generator[Path, None, None]:
-    """Create a temporary input directory."""
-    input_dir = tmp_path / "input"
-    input_dir.mkdir()
-    yield input_dir
-
-
-@pytest.fixture
-def temp_output_dir(tmp_path: Path) -> Generator[Path, None, None]:
-    """Create a temporary output directory."""
-    output_dir = tmp_path / "output"
-    output_dir.mkdir()
-    yield output_dir
-
-
-@pytest.fixture
-def mock_env(monkeypatch: pytest.MonkeyPatch, temp_cache_dir: Path) -> None:
-    """Set up mock environment variables and directories."""
-    monkeypatch.setenv("GITHUB_TOKEN", "test_token_12345")
-    monkeypatch.setattr("src.main.CACHE_DIR", str(temp_cache_dir))
-    monkeypatch.setattr(
-        "src.main.Path", lambda x: temp_cache_dir if x == "github_cache" else Path(x)
-    )
+    return build

@@ -1,247 +1,156 @@
 # Copyright (c) 2026 Jonas Thelemann
-"""Integration tests for the complete workflow."""
+"""Integration tests covering the flow from discovery to written output."""
 
 from __future__ import annotations
 
 import json
-import time
-from pathlib import Path
-from unittest.mock import patch
+from typing import TYPE_CHECKING
 
 import pytest
 import responses
 
-from src.main import main
+from src.main import GRAPHQL_BATCH_SIZE, cache_read, cache_write, enrich_repos, main
+from tests.conftest import GRAPHQL_URL
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from pathlib import Path
 
 
 @pytest.mark.integration
-class TestMainIntegration:
-    """Integration tests for main function."""
+class TestEnrichRepos:
+    """Tests for enrich_repos function."""
 
     @responses.activate
-    def test_full_workflow(self, tmp_path: Path, sample_html: str) -> None:
-        """Test the complete workflow from HTML to JSON output."""
-        # Set up directories
-        input_dir = tmp_path / "input"
-        output_dir = tmp_path / "output"
-        cache_dir = tmp_path / "cache"
+    def test_rejects_slugs_that_are_not_repositories(self) -> None:
+        """Test that an unusable slug is skipped without a request.
 
-        input_dir.mkdir()
-        cache_dir.mkdir()
-
-        # Create input file
-        input_file = input_dir / "profile-pins.html"
-        input_file.write_text(sample_html)
-
-        # Mock API responses
-        responses.add(
-            responses.GET,
-            "https://api.github.com/repos/nuxt/nuxt",
-            json={
-                "name": "nuxt",
-                "description": "The Intuitive Vue Framework.",
-                "fork": False,
-                "stargazers_count": 59300,
-                "html_url": "https://github.com/nuxt/nuxt",
-                "owner": {
-                    "login": "nuxt",
-                    "avatar_url": "https://avatars.githubusercontent.com/u/23360933",
-                    "type": "Organization",
-                    "html_url": "https://github.com/nuxt",
-                },
-            },
-            status=200,
-        )
-
-        responses.add(
-            responses.GET,
-            "https://api.github.com/repos/testuser/test-repo",
-            json={
-                "name": "test-repo",
-                "description": "A test repository",
-                "fork": False,
-                "stargazers_count": 123,
-                "html_url": "https://github.com/testuser/test-repo",
-                "owner": {
-                    "login": "testuser",
-                    "avatar_url": "https://avatars.githubusercontent.com/u/12345",
-                    "type": "User",
-                    "html_url": "https://github.com/testuser",
-                },
-            },
-            status=200,
-        )
-
-        # Patch paths and run
-        with (
-            patch("src.main.CACHE_DIR", str(cache_dir)),
-            patch("src.main.Path") as mock_path_class,
-        ):
-            # Configure Path mock
-            def path_factory(path_str: str) -> Path:
-                if path_str == "github_cache":
-                    return cache_dir
-                if path_str == "input/profile-pins.html":
-                    return input_file
-                if path_str == "output":
-                    return output_dir
-                return Path(path_str)
-
-            mock_path_class.side_effect = path_factory
-
-            main()
-
-        # Verify output file was created
-        output_file = output_dir / "repos.json"
-        assert output_file.exists()
-
-        # Verify output content
-        output_data = json.loads(output_file.read_text())
-        assert len(output_data) == 2
-
-        # Check first repo (nuxt/nuxt)
-        assert output_data[0]["repository"]["name"] == "nuxt"
-        assert output_data[0]["repository"]["stars"] == 59300
-        assert output_data[0]["repository"]["owner"]["name"] == "nuxt"
-
-        # Check second repo
-        assert output_data[1]["repository"]["name"] == "test-repo"
-        assert output_data[1]["repository"]["stars"] == 123
-
-    @responses.activate
-    def test_workflow_with_caching(self, tmp_path: Path, sample_html: str) -> None:
-        """Test that caching works across multiple runs."""
-        # Set up directories
-        input_dir = tmp_path / "input"
-        output_dir = tmp_path / "output"
-        cache_dir = tmp_path / "cache"
-
-        input_dir.mkdir()
-        cache_dir.mkdir()
-
-        input_file = input_dir / "profile-pins.html"
-        input_file.write_text(sample_html)
-
-        # Mock API responses for first run only
-        responses.add(
-            responses.GET,
-            "https://api.github.com/repos/nuxt/nuxt",
-            json={"name": "nuxt", "stargazers_count": 59300, "owner": {}},
-            status=200,
-        )
-
-        responses.add(
-            responses.GET,
-            "https://api.github.com/repos/testuser/test-repo",
-            json={"name": "test-repo", "stargazers_count": 123, "owner": {}},
-            status=200,
-        )
-
-        def path_factory(path_str: str) -> Path:
-            if path_str == "github_cache":
-                return cache_dir
-            if path_str == "input/profile-pins.html":
-                return input_file
-            if path_str == "output":
-                return output_dir
-            return Path(path_str)
-
-        # First run - should hit API
-        with (
-            patch("src.main.CACHE_DIR", str(cache_dir)),
-            patch("src.main.Path") as mock_path_class,
-        ):
-            mock_path_class.side_effect = path_factory
-            main()
-
-        # Verify cache files were created
-        cache_files = list(cache_dir.glob("*.json"))
-        assert len(cache_files) == 2
-
-        # Clear API mocks
-        responses.reset()
-
-        # Second run - should use cache, no API calls
-        with (
-            patch("src.main.CACHE_DIR", str(cache_dir)),
-            patch("src.main.Path") as mock_path_class,
-        ):
-            mock_path_class.side_effect = path_factory
-            main()
-
-        # Verify output still correct (from cache)
-        output_file = output_dir / "repos.json"
-        output_data = json.loads(output_file.read_text())
-        assert len(output_data) == 2
-
-    @responses.activate
-    def test_workflow_with_rate_limiting(self, tmp_path: Path) -> None:
-        """Test that rate limiting is handled properly."""
-        html = """
-        <ul>
-            <li class="source" data-pinnable-type="repository">
-                <strong data-filter-item-text>test/repo1</strong>
-                <span class="stars">100</span>
-            </li>
-            <li class="source" data-pinnable-type="repository">
-                <strong data-filter-item-text>test/repo2</strong>
-                <span class="stars">200</span>
-            </li>
-        </ul>
+        The query builder interpolates slugs.
+        So anything holding GraphQL syntax is dropped before it reaches a query.
         """
+        assert enrich_repos({"not a slug", 'owner/repo") {'}, "testuser", "id") == []
+        assert not responses.calls
 
-        input_dir = tmp_path / "input"
-        output_dir = tmp_path / "output"
-        cache_dir = tmp_path / "cache"
+    @responses.activate
+    def test_serves_a_fresh_cache_entry_without_a_request(self) -> None:
+        """Test that a cached repository is not fetched again."""
+        cached = {
+            "contribution": {"commits": 1},
+            "repository": {"name": "nuxt", "stars": 1},
+        }
+        cache_write("contribution:nuxt/nuxt", cached)
 
-        input_dir.mkdir()
-        cache_dir.mkdir()
+        assert enrich_repos({"nuxt/nuxt"}, "testuser", "id") == [cached]
+        assert not responses.calls
 
-        input_file = input_dir / "profile-pins.html"
-        input_file.write_text(html)
+    @responses.activate
+    def test_refetches_an_entry_of_an_older_shape(
+        self,
+        batch_response: Callable[..., dict[str, object]],
+    ) -> None:
+        """Test that a cache entry missing the current keys is fetched again."""
+        cache_write("contribution:nuxt/nuxt", {"repository": {"name": "nuxt"}})
+        responses.post(GRAPHQL_URL, json={"data": batch_response()})
 
-        # First API call succeeds
-        responses.add(
-            responses.GET,
-            "https://api.github.com/repos/test/repo1",
-            json={"name": "repo1", "stargazers_count": 100, "owner": {}},
-            status=200,
+        enriched = enrich_repos({"nuxt/nuxt"}, "testuser", "id")
+
+        assert enriched[0]["contribution"]["commits"] == 6
+        assert len(responses.calls) == 1
+
+    @responses.activate
+    def test_caches_what_it_fetches(
+        self,
+        batch_response: Callable[..., dict[str, object]],
+    ) -> None:
+        """Test that a fetched repository is written to the cache."""
+        responses.post(GRAPHQL_URL, json={"data": batch_response()})
+
+        enrich_repos({"nuxt/nuxt"}, "testuser", "id")
+
+        assert cache_read("contribution:nuxt/nuxt") is not None
+
+    @responses.activate
+    def test_splits_more_repositories_than_fit_in_one_query(
+        self,
+        batch_response: Callable[..., dict[str, object]],
+    ) -> None:
+        """Test that the batch size caps how many repositories go into one request."""
+        slugs = {f"owner{index}/repo" for index in range(GRAPHQL_BATCH_SIZE + 1)}
+        for _ in range(2):
+            responses.post(
+                GRAPHQL_URL,
+                json={
+                    "data": {
+                        key: value
+                        for index in range(GRAPHQL_BATCH_SIZE)
+                        for key, value in batch_response(
+                            index=index,
+                            slug=f"owner{index}/repo",
+                        ).items()
+                    },
+                },
+            )
+
+        enrich_repos(slugs, "testuser", "id")
+
+        assert len(responses.calls) == 2
+
+    @responses.activate
+    def test_sorts_the_output(
+        self,
+        batch_response: Callable[..., dict[str, object]],
+    ) -> None:
+        """Test that the output order is stable regardless of discovery order."""
+        responses.post(
+            GRAPHQL_URL,
+            json={
+                "data": {
+                    **batch_response(index=0, slug="unjs/nitro"),
+                    **batch_response(index=1, slug="nuxt/nuxt"),
+                },
+            },
         )
 
-        # Second API call hits rate limit
-        responses.add(
-            responses.GET,
-            "https://api.github.com/repos/test/repo2",
-            json={"message": "API rate limit exceeded"},
-            status=429,
-            headers={"x-ratelimit-reset": str(int(time.time() + 3600))},
+        enriched = enrich_repos({"unjs/nitro", "nuxt/nuxt"}, "testuser", "id")
+
+        assert [item["repository"]["name"] for item in enriched] == ["nuxt", "nitro"]
+
+
+@pytest.mark.integration
+class TestMain:
+    """Tests for the main entry point."""
+
+    @responses.activate
+    def test_writes_the_output_file(
+        self,
+        batch_response: Callable[..., dict[str, object]],
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        """Test that a full run discovers, enriches and writes."""
+        monkeypatch.chdir(tmp_path)
+        responses.post(GRAPHQL_URL, json={"data": {"user": {"id": "MDQ6VXNlcjQ="}}})
+        responses.post(
+            GRAPHQL_URL,
+            json={
+                "data": {
+                    "user": {
+                        "repositoriesContributedTo": {
+                            "nodes": [{"isFork": False, "nameWithOwner": "nuxt/nuxt"}],
+                            "pageInfo": {"endCursor": None, "hasNextPage": False},
+                        },
+                    },
+                },
+            },
         )
+        responses.post(GRAPHQL_URL, json={"data": batch_response()})
 
-        def path_factory(path_str: str) -> Path:
-            if path_str == "github_cache":
-                return cache_dir
-            if path_str == "input/profile-pins.html":
-                return input_file
-            if path_str == "output":
-                return output_dir
-            return Path(path_str)
+        main()
 
-        with (
-            patch("src.main.CACHE_DIR", str(cache_dir)),
-            patch("src.main.Path") as mock_path_class,
-        ):
-            mock_path_class.side_effect = path_factory
-            main()
+        output = (tmp_path / "output/repos.json").read_text()
+        data = json.loads(output)
 
-        # Output should still be created with available data
-        output_file = output_dir / "repos.json"
-        assert output_file.exists()
-
-        output_data = json.loads(output_file.read_text())
-        assert len(output_data) == 2
-
-        # First repo should have API data
-        assert output_data[0]["repository"]["name"] == "repo1"
-
-        # Second repo should fall back to HTML star count
-        assert output_data[1]["repository"]["stars"] == 200
+        assert output.endswith("\n")
+        assert len(data) == 1
+        assert data[0]["repository"]["name"] == "nuxt"
+        assert data[0]["contribution"]["role"] == "TRIAGE"
