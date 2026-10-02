@@ -1,4 +1,4 @@
-FROM python:3.14.7-alpine AS base-image
+FROM python:3.14.8-alpine AS base-image
 
 ENV PATH="/srv/app/.venv/bin:$PATH"
 ENV UV_COMPILE_BYTECODE=1
@@ -7,7 +7,7 @@ ENV UV_PYTHON_DOWNLOADS=0
 
 WORKDIR /srv/app/
 
-COPY --from=ghcr.io/astral-sh/uv:0.12.21 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.12.22 /uv /uvx /bin/
 COPY ./docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 
