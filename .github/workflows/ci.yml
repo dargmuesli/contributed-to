@@ -14,14 +14,14 @@ on:
 jobs:
   ci-optimization:
     name: CI optimization
-    uses: dargmuesli/github-actions/.github/workflows/ci-optimization.yml@121d4c605f0d1d6eeca65ad8026ac09d7594fe76 # 5.9.8
+    uses: dargmuesli/github-actions/.github/workflows/ci-optimization.yml@294d370b270732cd3653e2961037405666ade3b8 # 5.9.9
     permissions:
       pull-requests: read
   release_semantic_dry:
     needs: ci-optimization
     if: needs.ci-optimization.outputs.continue == 'true'
     name: Release (semantic, dry)
-    uses: dargmuesli/github-actions/.github/workflows/release-semantic.yml@121d4c605f0d1d6eeca65ad8026ac09d7594fe76 # 5.9.8
+    uses: dargmuesli/github-actions/.github/workflows/release-semantic.yml@294d370b270732cd3653e2961037405666ade3b8 # 5.9.9
     permissions:
       contents: write
       id-token: write
@@ -34,7 +34,7 @@ jobs:
       GH_APP_ID: ${{ vars.GH_APP_ID }}
   build:
     name: Build
-    uses: dargmuesli/github-actions/.github/workflows/docker.yml@121d4c605f0d1d6eeca65ad8026ac09d7594fe76 # 5.9.8
+    uses: dargmuesli/github-actions/.github/workflows/docker.yml@294d370b270732cd3653e2961037405666ade3b8 # 5.9.9
     needs: release_semantic_dry
     permissions:
       packages: write
@@ -49,7 +49,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download coverage artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: build-artifact
       - name: Extract coverage artifact
@@ -62,7 +62,7 @@ jobs:
   release_semantic:
     needs: build
     name: Release (semantic)
-    uses: dargmuesli/github-actions/.github/workflows/release-semantic.yml@121d4c605f0d1d6eeca65ad8026ac09d7594fe76 # 5.9.8
+    uses: dargmuesli/github-actions/.github/workflows/release-semantic.yml@294d370b270732cd3653e2961037405666ade3b8 # 5.9.9
     permissions:
       contents: write
       id-token: write
