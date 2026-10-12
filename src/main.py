@@ -30,7 +30,8 @@ GITHUB_GRAPHQL_URL = "https://api.github.com/graphql"
 # A batch of 25 repositories makes the GraphQL endpoint time out with HTTP 502.
 # Eight sits comfortably below that.
 GRAPHQL_BATCH_SIZE = 8
-HTTP_BAD_GATEWAY = 502
+# GitHub reports a query that exceeds its time budget as either of these.
+HTTP_GATEWAY_TIMEOUTS = (502, 504)
 HTTP_OK = 200
 PINS_INPUT_PATH = "input/profile-pins.html"
 SEED_INPUT_PATH = "input/seed.json"
@@ -107,9 +108,11 @@ class GitHubGraphQlError(RuntimeError):
 class BatchTooLargeError(RuntimeError):
     """Raised when GitHub cannot answer a batch within its own time budget."""
 
-    def __init__(self) -> None:
+    def __init__(self, status: int) -> None:
         """Signal to the caller that the batch has to be split."""
-        super().__init__("GitHub GraphQL API returned HTTP 502, the batch is too large")
+        super().__init__(
+            f"GitHub GraphQL API returned HTTP {status}, the batch is too large"
+        )
 
 
 class UnknownUserError(RuntimeError):
@@ -171,8 +174,8 @@ def github_graphql(query: str, variables: dict[str, object]) -> dict[str, object
         timeout=REQUEST_TIMEOUT,
     )
 
-    if resp.status_code == HTTP_BAD_GATEWAY:
-        raise BatchTooLargeError
+    if resp.status_code in HTTP_GATEWAY_TIMEOUTS:
+        raise BatchTooLargeError(resp.status_code)
 
     if resp.status_code != HTTP_OK:
         detail = f"HTTP {resp.status_code}: {resp.text[:200]}"

@@ -100,9 +100,10 @@ class TestGithubGraphql:
         )
 
     @responses.activate
-    def test_bad_gateway_asks_for_a_smaller_batch(self) -> None:
-        """Test that HTTP 502 is reported as a batch that has to be split."""
-        responses.post(GRAPHQL_URL, status=502)
+    @pytest.mark.parametrize("status", [502, 504])
+    def test_gateway_timeout_asks_for_a_smaller_batch(self, status: int) -> None:
+        """Test that a gateway timeout is reported as a batch that has to be split."""
+        responses.post(GRAPHQL_URL, status=status)
 
         with pytest.raises(BatchTooLargeError):
             github_graphql("query { viewer { id } }", {})
