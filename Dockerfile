@@ -1,4 +1,4 @@
-FROM python:3.14.8-alpine AS base-image
+FROM python:3.15.0-alpine AS base-image
 
 ENV PATH="/srv/app/.venv/bin:$PATH"
 ENV UV_COMPILE_BYTECODE=1
