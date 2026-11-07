@@ -37,6 +37,8 @@ jobs:
     uses: dargmuesli/github-actions/.github/workflows/docker.yml@318a575af13dfd54dca497f6b190b0ac70ded4ed # 5.9.11
     needs: release_semantic_dry
     permissions:
+      attestations: write
+      id-token: write
       packages: write
     with:
       ARTIFACT_PATH: .
