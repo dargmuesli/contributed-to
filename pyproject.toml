@@ -33,7 +33,7 @@ keywords = ["github", "contributions", "repositories", "api", "stats"]
 license = {text = "MIT"}
 name = "contributed-to"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.11.5"
 version = "0.1.1"
 
 [project.scripts]
