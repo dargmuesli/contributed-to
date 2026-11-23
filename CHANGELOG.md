@@ -1,3 +1,9 @@
+## [0.1.2](https://github.com/dargmuesli/contributed-to/compare/0.1.1...0.1.2) (2026-11-23)
+
+### Bug Fixes
+
+* **deps:** update all non-major dependencies ([8c65d6e](https://github.com/dargmuesli/contributed-to/commit/8c65d6ebb31b73d0f68eb6ba4b0e352041203f64))
+
 ## [0.1.1](https://github.com/dargmuesli/contributed-to/compare/0.1.0...0.1.1) (2026-10-12)
 
 ### Bug Fixes
