@@ -1,4 +1,4 @@
-FROM python:3.15.2-alpine AS base-image
+FROM python:3.15.2-alpine@sha256:0f9552bb28711333da16915ec146f5e6bb44a7fdac9ced15dc17c2e0206346dd AS base-image
 
 ENV PATH="/srv/app/.venv/bin:$PATH"
 ENV UV_COMPILE_BYTECODE=1
@@ -7,7 +7,7 @@ ENV UV_PYTHON_DOWNLOADS=0
 
 WORKDIR /srv/app/
 
-COPY --from=ghcr.io/astral-sh/uv:0.13.9 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.13.9@sha256:d3b601f0c7b118bc1753febf7c41cc80981df678445e0254284eecf84db79a7d /uv /uvx /bin/
 COPY ./docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 
